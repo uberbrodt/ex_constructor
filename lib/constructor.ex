@@ -101,7 +101,7 @@ defmodule Constructor do
   end
 
   defmacro _new(opts) when is_list(opts) do
-    _nil_to_empty = Keyword.get(opts, :nil_to_empty, true)
+    nil_to_empty_global = Keyword.get(opts, :nil_to_empty, true)
 
     quote do
       @impl Constructor
@@ -119,8 +119,14 @@ defmodule Constructor do
       def new(value, opts \\ [])
 
       @impl Constructor
-      def new(nil, _opts) do
-        new(%__MODULE__{})
+      def new(nil, opts) do
+        nil_to_empty = Keyword.get(opts, :nil_to_empty, unquote(nil_to_empty_global))
+
+        if nil_to_empty do
+          new(%__MODULE__{})
+        else
+          {:ok, nil}
+        end
       end
 
       def new([], opts) do
@@ -170,7 +176,7 @@ defmodule Constructor do
         results =
           Enum.into(__constructors__(), [], fn {field_name, construct_fun} ->
             field = Map.get(in_struct, field_name)
-            result = construct_fun.(field)
+            result = Constructor._exec_field_fun(construct_fun, field)
 
             {field_name, result}
           end)
@@ -180,6 +186,32 @@ defmodule Constructor do
           {:error, errors} -> {:error, {:constructor, errors}}
         end
       end
+    end
+  end
+
+  def _exec_field_fun(functions, field) when is_list(functions) do
+    case Enum.reduce(functions, field, &process_field_funs/2) do
+      {:error, _} = e -> e
+      result -> {:ok, result}
+    end
+  end
+
+  def _exec_field_fun({m, f, a}, field) do
+    apply(m, f, [field | a])
+  end
+
+  def _exec_field_fun(fun, field) do
+    fun.(field)
+  end
+
+  defp process_field_funs(_fun, {:error, _} = e) do
+    e
+  end
+
+  defp process_field_funs(fun, accumulator) do
+    case _exec_field_fun(fun, accumulator) do
+      {:ok, field} -> field
+      {:error, _} = e -> e
     end
   end
 

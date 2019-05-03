@@ -4,9 +4,12 @@ defmodule Constructor.MixProject do
   def project do
     [
       app: :constructor,
-      version: "0.1.0",
+      version: "1.0.0-rc.0",
+      description: description(),
+      docs: [main: Constructor],
       elixir: "~> 1.7",
       elixirc_paths: elixirc_paths(Mix.env()),
+      package: package(),
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -14,7 +17,6 @@ defmodule Constructor.MixProject do
 
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
-  # defp elixirc_paths(:dev), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help compile.app" to learn about applications.
@@ -24,16 +26,28 @@ defmodule Constructor.MixProject do
     ]
   end
 
+  defp package do
+    [
+      # files: ["lib", "mix.exs", "README.md", "LICENSE"],
+      maintainers: ["Chris Brodt"],
+      licenses: ["LGPL-V3"],
+      source_url: "https://github.com/uberbrodt/ex_constructor",
+      links: %{"Github" => "https://github.com/uberbrodt/ex_constructor"}
+    ]
+  end
+
+  defp description do
+    "A library for declaratively defining structs with field-level coercions and validations"
+  end
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:elixir_uuid, "~> 1.2", only: [:test]},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.0.0-rc.6", only: [:dev, :test], runtime: false},
       {:morphix, "~> 0.6.0"},
-      {:typed_struct, path: "../typed_struct"}
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
+      {:typed_struct, "~> 0.1.4", hex: :typed_struct_uberbrodt}
+      # {:typed_struct, git: "https://github.com/uberbrodt/typed_struct", tag: "plugin_system"}
     ]
   end
 end

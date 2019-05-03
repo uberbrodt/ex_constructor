@@ -15,7 +15,7 @@ defmodule Constructor.Validate do
   def is_boolean(value) do
     case value do
       x when Kernel.is_boolean(x) -> {:ok, value}
-      _ -> {:error,"must be a boolean"}
+      _ -> {:error, "must be a boolean"}
     end
   end
 
@@ -23,6 +23,13 @@ defmodule Constructor.Validate do
     case value do
       x when is_binary(x) -> {:ok, value}
       _ -> {:error, "must be a string"}
+    end
+  end
+
+  def is_string_or_nil(value) do
+    case value do
+      nil -> {:ok, nil}
+      other -> is_string(other)
     end
   end
 
@@ -57,6 +64,20 @@ defmodule Constructor.Validate do
       x when Kernel.is_float(x) -> {:ok, value}
       :unchanged -> {:ok, value}
       _ -> {:error, "must be a float"}
+    end
+  end
+
+  def is_list(value) do
+    case value do
+      x when Kernel.is_list(x) -> {:ok, x}
+      _ -> {:error, "must be a list"}
+    end
+  end
+
+  def is_atom(value) do
+    case value do
+      x when Kernel.is_atom(x) -> {:ok, x}
+      _ -> {:error, "must be an atom"}
     end
   end
 

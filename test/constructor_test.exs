@@ -7,7 +7,7 @@ defmodule ConstructorTest do
     constructor do
       field :id, :string, default: "", constructor: &Validate.is_string/1
       field :name, :string, constructor: &Validate.is_nonempty_string/1
-      field :age, :integer, constructor: &Construct.integer/1
+      field :age, :integer, constructor: &Convert.to_integer/1
     end
   end
 
@@ -15,8 +15,8 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Construct.uuid/1
-      field :age, :integer, default: 0, constructor: &Construct.integer/1
+      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
+      field :age, :integer, default: 0, constructor: &Convert.to_integer/1
       field :name, :string, constructor: &Validate.is_nonempty_string/1
       field :child, TestChild.t(), constructor: &TestChild.new/1
       field :step_children, [TestChild.t()], default: [], constructor: &TestChild.new/1
@@ -33,12 +33,30 @@ defmodule ConstructorTest do
     end
   end
 
+  defmodule SimpleChild do
+    @moduledoc false
+    use Constructor
+
+    constructor do
+      field :id, :string, default: "test_id", constructor: &Validate.is_string/1
+    end
+  end
+
+  defmodule SimpleChildConstructorOpts do
+    @moduledoc false
+    use Constructor
+
+    constructor nil_to_empty: false do
+      field :id, :string, default: "test_id", constructor: &Validate.is_string/1
+    end
+  end
+
   defmodule TestUser do
     @moduledoc false
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Construct.uuid/1
+      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
       field :first_name, :string, constructor: &Validate.is_nonempty_string/1
       field :last_name, :string, constructor: &Validate.is_string/1
     end
@@ -60,7 +78,7 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Construct.uuid/1
+      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
       field :first_name, :string, constructor: &Validate.is_nonempty_string/1
       field :last_name, :string, default: "", constructor: &Validate.is_string/1
     end
@@ -80,26 +98,73 @@ defmodule ConstructorTest do
     end
   end
 
+  defmodule MFAConstructors do
+    use Constructor
+
+    constructor do
+      field :name, :string, default: "", constructor: {Validate, :is_string, []}
+    end
+  end
+
+  defmodule NewOptions do
+    use Constructor
+
+    constructor do
+      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
+      field :child, SimpleChild.t(), constructor: {SimpleChild, :new, [[nil_to_empty: false]]}
+    end
+  end
+
+  defmodule ConstructorLists do
+    use Constructor
+
+    constructor do
+      field :first_name, String.t(),
+        constructor: [{Validate, :is_string, []}, {__MODULE__, :string_length, [12]}]
+
+      field :last_name, String.t(),
+        default: "Christopher",
+        constructor: [&Validate.is_string/1, &__MODULE__.string_length/1]
+    end
+
+    def string_length(v, size \\ 10) do
+      if String.length(v) >= size do
+        {:ok, v}
+      else
+        {:error, "'#{v}' does not meet length of #{size}"}
+      end
+    end
+  end
+
+  defmodule ConstructorLevelOptions do
+    use Constructor
+
+    constructor do
+      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
+      field :child, SimpleChildConstructorOpts.t(), constructor: &SimpleChildConstructorOpts.new/1
+    end
+  end
+
   describe "new/1" do
     test "when given map that passes validation, returns {:ok, %TestChild{}}" do
       assert TestChild.new(%{name: "Otis"}) == {:ok, %TestChild{name: "Otis", age: 0, id: ""}}
     end
 
     test "construct fails age validation and returns errors" do
-      args = %{age: 7.54, id: UUID.uuid4(), name: "Chris", child: %{name: "Otis"}}
+      args = %{age: 7.54, id: "foo", name: "Chris", child: %{name: "Otis"}}
 
       assert ConstructorTest.new(args) ==
                {:error, {:constructor, [age: "must be an integer"]}}
     end
 
     test "nil :child is converted to empty struct" do
-      arg = %{name: "Chris", id: UUID.uuid4(), child: default_child()}
+      arg = %{name: "Chris", id: "foo", child: default_child()}
       {:ok, %{child: result}} = ConstructorTest.new(arg)
       assert result.__struct__ == TestChild
     end
 
     test "nil :step_children converted to []" do
-      arg = %{name: "Chris", id: UUID.uuid4(), child: default_child()}
+      arg = %{name: "Chris", id: "foo", child: default_child()}
       {:ok, %{step_children: result}} = ConstructorTest.new(arg)
       assert result == []
     end
@@ -108,11 +173,11 @@ defmodule ConstructorTest do
       arg = %{age: 34, name: "", child: default_child()}
 
       assert ConstructorTest.new(arg) ==
-               {:error, {:constructor, [id: "must be a UUID", name: "is required"]}}
+               {:error, {:constructor, [id: "is required", name: "is required"]}}
     end
 
     test "returns error from :child on it's :name constructor" do
-      arg = %{name: "Chris", id: UUID.uuid4(), child: %{id: UUID.uuid4(), age: 2}}
+      arg = %{name: "Chris", id: "foo", child: %{id: "foo", age: 2}}
 
       assert ConstructorTest.new(arg) ==
                {:error, {:constructor, [child: [name: "is required"]]}}
@@ -125,17 +190,55 @@ defmodule ConstructorTest do
 
       assert TestChild.new(x) == {:ok, %TestChild{name: "Chris", age: 0}}
     end
+
+    test "{M,F,A} tuples are executed with the field value as arg 0" do
+      arg = %{name: "Chris"}
+      assert MFAConstructors.new(arg) == {:ok, %MFAConstructors{name: "Chris"}}
+    end
+
+    test "nil_to_empty: false option will prevent coercing nil to the struct" do
+      args = %{id: "foo", child: nil}
+      assert NewOptions.new(args) == {:ok, %NewOptions{id: args[:id], child: nil}}
+    end
+
+    test ":nil_to_empty constructor level option" do
+      args = %{id: "foo", child: nil}
+
+      assert ConstructorLevelOptions.new(args) ==
+               {:ok, %ConstructorLevelOptions{id: args[:id], child: nil}}
+    end
+
+    test "executes a list of MFA tuples defined on :constructor" do
+      args = %{first_name: "foo"}
+
+      assert ConstructorLists.new(args) ==
+               {:error, {:constructor, [first_name: "'foo' does not meet length of 12"]}}
+    end
+
+    test "if function in list returns error tuple, halt running functions and return error" do
+      args = %{first_name: 12}
+
+      assert ConstructorLists.new(args) ==
+               {:error, {:constructor, [first_name: "must be a string"]}}
+    end
+
+    test "list of function captures for :constructor" do
+      args = %{first_name: "Christopoulos", last_name: "Jones"}
+
+      assert ConstructorLists.new(args) ==
+               {:error, {:constructor, [last_name: "'Jones' does not meet length of 10"]}}
+    end
   end
 
   describe "before_construct/1" do
     test "matching function definition is called" do
-      {:ok, input} = StepChild.new(name: "John Smith", id: UUID.uuid4())
+      {:ok, input} = StepChild.new(name: "John Smith", id: "foo")
       {:ok, x} = TestUser.new(input)
       assert x == %TestUser{first_name: "John", last_name: "Smith", id: input.id}
     end
 
     test "calling super works" do
-      input = %{first_name: "John", last_name: "Hancock", id: UUID.uuid4()}
+      input = %{first_name: "John", last_name: "Hancock", id: "foo"}
       {:ok, x} = TestUser.new(input)
       assert x == %TestUser{first_name: "John", last_name: "Hancock", id: input.id}
     end
@@ -143,10 +246,9 @@ defmodule ConstructorTest do
 
   describe "after_construct/1" do
     test "returns error if first_name is not James" do
-      args = %{first_name: "Chris", id: UUID.uuid4()}
+      args = %{first_name: "Chris", id: "foo"}
       assert JamesUser.new(args) == {:error, {:constructor, [first_name: "must be James"]}}
     end
-
   end
 
   def default_child do

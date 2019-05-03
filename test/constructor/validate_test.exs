@@ -78,7 +78,7 @@ defmodule Constructor.ValidateTest do
 
   describe "is_uuid/2" do
     test "a UUID returns :ok" do
-      uuid = UUID.uuid4()
+      uuid = "8bda7bf2-8ecd-48a4-b4dc-d9db9befe449"
       assert Validate.is_uuid(uuid) == {:ok, uuid}
     end
 

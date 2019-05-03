@@ -1,5 +1,6 @@
 defmodule Constructor.Convert do
   @moduledoc false
+  alias Constructor.Validate
 
   @doc """
   Converts integers, floats and atoms to an equivalent string representation. `nil` is converted to
@@ -15,54 +16,59 @@ defmodule Constructor.Convert do
       x when is_atom(x) -> Atom.to_string(x)
       x -> x
     end
-  rescue
-    ArgumentError -> v
+    |> Validate.is_string()
   end
 
   @spec to_string_or_nil(any) :: any
   def to_string_or_nil(v) do
     case v do
-      nil -> nil
+      nil -> {:ok, nil}
       other -> __MODULE__.to_string(other)
     end
   end
 
   def to_integer(v) do
-    case v do
-      nil -> 0
-      "" -> 0
-      x when is_binary(x) -> String.to_integer(x)
-      x -> x
+    try do
+      case v do
+        nil -> 0
+        "" -> 0
+        x when is_binary(x) -> String.to_integer(x)
+        x -> x
+      end
+    rescue
+      ArgumentError -> v
     end
-  rescue
-    ArgumentError -> v
+    |> Validate.is_integer()
   end
 
   def to_integer_or_nil(v) do
     case v do
-      nil -> nil
+      nil -> {:ok, nil}
       other -> to_integer(other)
     end
   end
 
   def to_float(v) do
-    case v do
-      0 -> 0.0
-      nil -> 0.0
-      "" -> 0.0
-      "0" -> 0.0
-      v when is_integer(v) -> v / 1
-      v when is_float(v) -> v
-      v when is_binary(v) -> String.to_float(v)
-      v -> v
+    try do
+      case v do
+        0 -> 0.0
+        nil -> 0.0
+        "" -> 0.0
+        "0" -> 0.0
+        v when is_integer(v) -> v / 1
+        v when is_float(v) -> v
+        v when is_binary(v) -> String.to_float(v)
+        v -> v
+      end
+    rescue
+      ArgumentError -> v
     end
-  rescue
-    ArgumentError -> v
+    |> Validate.is_float()
   end
 
   def to_float_or_nil(v) do
     case v do
-      nil -> nil
+      nil -> {:ok, nil}
       other -> to_float(other)
     end
   end
@@ -77,11 +83,12 @@ defmodule Constructor.Convert do
       0 -> false
       x -> x
     end
+    |> Validate.is_boolean()
   end
 
   def to_boolean_or_nil(v) do
     case v do
-      nil -> nil
+      nil -> {:ok, nil}
       other -> to_boolean(other)
     end
   end
@@ -91,6 +98,7 @@ defmodule Constructor.Convert do
       nil -> []
       o -> o
     end
+    |> Validate.is_list()
   end
 
   def to_atom(item) do
@@ -99,36 +107,13 @@ defmodule Constructor.Convert do
       x when is_binary(x) -> String.to_atom(x)
       _ -> item
     end
-  end
-
-  def upcase_string(v) when is_binary(v) do
-    String.upcase(v)
-  end
-
-  def upcase_string(v) do
-    v
-  end
-
-  def empty_to_nil(v) do
-    case v do
-      "" -> nil
-      0 -> nil
-      0.0 -> nil
-      [] -> nil
-      nil -> nil
-      other -> other
-    end
+    |> Validate.is_atom()
   end
 
   @doc """
   converts an atom or a string to an
   """
   def to_enum_string(e) do
-    e
-    |> to_string_or_nil()
-    |> empty_to_nil()
-    |> upcase_string()
-
     case e do
       nil -> nil
       "" -> nil
@@ -136,5 +121,6 @@ defmodule Constructor.Convert do
       x when is_atom(x) -> x |> Atom.to_string() |> Macro.underscore() |> String.upcase()
       _ -> e
     end
+    |> Validate.is_string_or_nil()
   end
 end
