@@ -1,16 +1,19 @@
 # Constructor
 
-**TODO: Add description**
+An Elixir  library for declaratively defining structs with field-level conversions
+and validations.
+
+Check out the [docs](https://hexdocs.pm/constructor) to learn about all the
+features.
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `constructor` to your list of dependencies in `mix.exs`:
+Add `constructor` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:constructor, "~> 0.1.0"}
+    {:constructor, "~> 1.0.0-rc.0"}
   ]
 end
 ```

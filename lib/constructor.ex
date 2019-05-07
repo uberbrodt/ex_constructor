@@ -1,6 +1,64 @@
 defmodule Constructor do
-  @moduledoc """
-  Documentation for Constructor.
+  @moduledoc ~S"""
+  Constructor is a library that reduces boilerplate when defining stucts by enabling per-field
+  validations and generating methods that are used to "construct" a struct.
+
+  A simple example is the following:
+
+
+  ```
+  defmodule DocTestUser do
+    use Constructor
+
+    constructor do
+      field :id, :integer, construct: &Validate.is_integer/1
+      field :first_name, :string, default: "", construct: &Validate.is_string/1
+      field :last_name, :string, default: "", construct: &Validate.is_string/1
+    end
+  end
+
+  DocTestUser.new(id: "foo", first_name: 37)
+  {:error, {:constructor, [id: "must be an integer", first_name: "must be an integer"]}}
+
+  iex> DocTestUser.new(id: 12, first_name: "Chris")
+  {:ok, %DocTestUser{id: 12, first_name: "Chris", last_name: ""}}
+
+  iex> DocTestUser.new!(id: 12, first_name: "Chris")
+  %DocTestUser{id: 12, first_name: "Chris", last_name: ""}
+  ```
+
+  A few things to note here:
+    * `new/1` and `new!/1` functions are generated, and accept a map, keyword list or a list of maps
+    * The `:construct` functions are run for each field, and any errors are returned in a keyword
+      list
+    * `default` values are applied *before* the `:construct` functions
+    * `Constructor.Validate` and `Constructor.Convert` are automatically aliased
+    * the `:construct` attribute accepts either a function capture (as above), a {M,F,A} tuple, or a
+    list of function captures or MFA tuples.
+
+
+  Any function that conforms to `t:constructor_fun/1` can be used in the `construct` field.
+  Additionally, a `new/1` function can also be used to build out a nested struct. For example:
+
+  ```
+  defmodule DocTestAdmin do
+    use Constructor
+
+    constructor do
+      field :id, :integer, construct: &Validate.is_integer/1
+      field :user, DocTestUser.t(), construct: &DocTestUser.new/1
+    end
+  end
+
+  iex> DocTestAdmin.new!(id: 22, user: %{id: 22, first_name: "Chris"})
+  %DocTestAdmin{id: 22, user: %DocTestUser{id: 22, first_name: "Chris"}}
+  ```
+
+
+  ## Acknowledgements
+  This library was born from the lack of a lightweight (but powerful!) validation library in Elixir
+  that doesn't depend on Ecto. The `constructor` macro comes almost entirely from the excellent
+  `typed_struct` library, save for a plugin mechanism.
   """
 
   defmodule ConstructorException do
@@ -8,34 +66,40 @@ defmodule Constructor do
     defexception message: "An error occured creating a struct"
   end
 
-  @type new_opts :: [field_name: atom]
+  @type new_opts :: [nil_to_empty: boolean]
 
-  @type conversion :: (field_item :: any -> field_item :: any)
-
-  @type validation :: (String.t() | atom, any -> :ok | {:error, {:constructor, map}})
+  @type constructor_fun :: (field_item :: any -> field_item :: any | {:error, String.t()})
 
   @callback new(input :: map | keyword | list(map)) ::
               {:ok, struct | list(struct) | nil} | {:error, {:constructor, map}}
 
+  @doc """
+  Build this struct from a map, struct or keyword list. Also accepts a list of maps that will be
+  iterated to convert each to the new function.
+
+  ### Opts
+  - `nil_to_empty`: if `true`, convert a nil `input` into an empty struct. Defaults to `true`
+  """
   @callback new(input :: map | keyword | list(map), opts :: new_opts) ::
               {:ok, struct | list(struct) | nil} | {:error, {:constructor, map}}
 
   @callback new!(input :: map | keyword | list(map) | nil) :: struct | nil | no_return
 
+  @doc """
+  Same as `new/2`, but returns the untagged struct or raises a ConstructorException
+  """
   @callback new!(input :: map | keyword | list(map | nil), opts :: new_opts) ::
               struct | nil | no_return
 
   @doc """
-  Implement this callback if you have some complex, multi-field conversions that don't make sense in
-  the `constructor/2` macro. Or, if you prefer to eschew the `constructor/2` macro entirely.
+  The callback can be used to modify an input to `new/2` before the constructor functions are
+  called.
   """
   @callback before_construct(any) :: {:ok, any} | {:error, {:constructor, map}}
 
   @doc """
-  Implement this callback if you have some complex, multi-field validations that don't make sense in
-  the `constructor/2` macro. Or, if you prefer to eschew the `constructor/2` macro entirely. Make a
-  best-effort to rescue any errors and convert them to a `{:error, any}` tuple.
-
+  This callback can be used to perform a complex, multi-field validation after all of the per-field
+  validations have run.
   """
   @callback after_construct(struct) :: {:ok, any} | {:error, {:constructor, map}}
 
@@ -49,7 +113,13 @@ defmodule Constructor do
     end
   end
 
-  @spec constructor(opts :: keyword) :: Macro.t()
+  @doc """
+  Declare a struct and it's fields. Set's the default options for the struct.
+
+  ### Opts
+  - `nil_to_empty`: if `true`, convert a nil `input` into an empty struct. Defaults to `true`
+  """
+  @spec constructor(opts :: new_opts) :: Macro.t()
   defmacro constructor(opts \\ [], do: block) do
     opts = Keyword.put(opts, :plugins, [Constructor.TypedStructPlugin])
 
@@ -216,10 +286,10 @@ defmodule Constructor do
   end
 
   def _process_result(results, struct) do
-    _do_process_result(results, struct, [])
+    do_process_result(results, struct, [])
   end
 
-  def _do_process_result([], struct, errors) do
+  defp do_process_result([], struct, errors) do
     if Enum.empty?(errors) do
       {:ok, struct}
     else
@@ -227,16 +297,16 @@ defmodule Constructor do
     end
   end
 
-  def _do_process_result([result | results], struct, errors) do
+  defp do_process_result([result | results], struct, errors) do
     case result do
       {field_name, {:error, {:constructor, error}}} ->
-        _do_process_result(results, struct, [{field_name, error} | errors])
+        do_process_result(results, struct, [{field_name, error} | errors])
 
       {field_name, {:error, error}} ->
-        _do_process_result(results, struct, [{field_name, error} | errors])
+        do_process_result(results, struct, [{field_name, error} | errors])
 
       {field_name, {:ok, v}} ->
-        _do_process_result(results, Map.put(struct, field_name, v), errors)
+        do_process_result(results, Map.put(struct, field_name, v), errors)
     end
   end
 end

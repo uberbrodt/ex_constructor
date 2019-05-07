@@ -230,6 +230,14 @@ defmodule ConstructorTest do
     end
   end
 
+  describe "new!/1" do
+    test "construct fails age validation and raises ConstructorException" do
+      args = %{age: 7.54, id: "foo", name: "Chris", child: %{name: "Otis"}}
+
+      assert_raise(Constructor.ConstructorException, fn -> ConstructorTest.new!(args)  end)
+    end
+  end
+
   describe "before_construct/1" do
     test "matching function definition is called" do
       {:ok, input} = StepChild.new(name: "John Smith", id: "foo")
