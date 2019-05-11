@@ -1,12 +1,18 @@
 defmodule Constructor.Convert do
-  @moduledoc false
+  @moduledoc """
+  Functions in this module will typically perform a type conversion and then a validation.
+  """
   alias Constructor.Validate
+
+
+  @type error :: {:error, String.t()}
+
 
   @doc """
   Converts integers, floats and atoms to an equivalent string representation. `nil` is converted to
   `""`
   """
-  @spec to_string(any) :: any
+  @spec to_string(any) :: {:ok, String.t()} | error
   def to_string(v) do
     case v do
       nil -> ""
@@ -19,7 +25,7 @@ defmodule Constructor.Convert do
     |> Validate.is_string()
   end
 
-  @spec to_string_or_nil(any) :: any
+  @spec to_string_or_nil(any) :: {:ok, String.t() | nil} | error
   def to_string_or_nil(v) do
     case v do
       nil -> {:ok, nil}
@@ -27,6 +33,7 @@ defmodule Constructor.Convert do
     end
   end
 
+  @spec to_integer(any) :: {:ok, integer} | error
   def to_integer(v) do
     try do
       case v do
@@ -41,6 +48,7 @@ defmodule Constructor.Convert do
     |> Validate.is_integer()
   end
 
+  @spec to_integer_or_nil(any) :: {:ok, integer | nil} | error
   def to_integer_or_nil(v) do
     case v do
       nil -> {:ok, nil}
@@ -48,6 +56,7 @@ defmodule Constructor.Convert do
     end
   end
 
+  @spec to_float(any) :: {:ok, float} | error
   def to_float(v) do
     try do
       case v do
@@ -66,6 +75,7 @@ defmodule Constructor.Convert do
     |> Validate.is_float()
   end
 
+  @spec to_float_or_nil(any) :: {:ok, float | nil} | error
   def to_float_or_nil(v) do
     case v do
       nil -> {:ok, nil}
@@ -73,6 +83,7 @@ defmodule Constructor.Convert do
     end
   end
 
+  @spec to_boolean(any) :: {:ok, boolean} | error
   def to_boolean(v) do
     case v do
       "true" -> true
@@ -86,6 +97,7 @@ defmodule Constructor.Convert do
     |> Validate.is_boolean()
   end
 
+  @spec to_boolean_or_nil(any) :: {:ok, boolean | nil} | error
   def to_boolean_or_nil(v) do
     case v do
       nil -> {:ok, nil}
@@ -93,6 +105,7 @@ defmodule Constructor.Convert do
     end
   end
 
+  @spec nil_to_list(any) :: {:ok, list} | error
   def nil_to_list(v) do
     case v do
       nil -> []
@@ -101,6 +114,7 @@ defmodule Constructor.Convert do
     |> Validate.is_list()
   end
 
+  @spec to_atom(any) :: {:ok, atom} | error
   def to_atom(item) do
     case item do
       nil -> nil
@@ -111,7 +125,7 @@ defmodule Constructor.Convert do
   end
 
   @doc """
-  converts an atom or a string to an
+  Converts an atom such as  `:foo` to `"FOO"`.
   """
   def to_enum_string(e) do
     case e do

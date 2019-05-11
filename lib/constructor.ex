@@ -119,7 +119,7 @@ defmodule Constructor do
   ### Opts
   - `nil_to_empty`: if `true`, convert a nil `input` into an empty struct. Defaults to `true`
   """
-  @spec constructor(opts :: new_opts) :: Macro.t()
+  @spec constructor(opts :: keyword) :: Macro.t()
   defmacro constructor(opts \\ [], do: block) do
     opts = Keyword.put(opts, :plugins, [Constructor.TypedStructPlugin])
 
