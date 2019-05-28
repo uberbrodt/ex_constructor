@@ -157,6 +157,14 @@ defmodule ConstructorTest do
                {:error, {:constructor, [age: "must be an integer"]}}
     end
 
+    test "turns a list of maps into {:ok, [struct]}" do
+      subject = [%{name: "Otis"}, %{name: "Redding"}]
+      assert {:ok, result} = TestChild.new(subject)
+      assert length(result) == 2
+      assert hd(result) == %TestChild{name: "Otis", age: 0, id: ""}
+      assert hd(Enum.reverse(result)) == %TestChild{name: "Redding", age: 0, id: ""}
+    end
+
     test "nil :child is converted to empty struct" do
       arg = %{name: "Chris", id: "foo", child: default_child()}
       {:ok, %{child: result}} = ConstructorTest.new(arg)

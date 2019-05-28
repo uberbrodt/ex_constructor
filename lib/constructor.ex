@@ -216,7 +216,7 @@ defmodule Constructor do
               end
             end
 
-          mapped
+          {:ok, mapped}
         end
       end
 
