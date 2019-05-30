@@ -216,7 +216,21 @@ defmodule Constructor do
               end
             end
 
-          {:ok, mapped}
+          errors =
+          Enum.with_index(mapped)
+          |> Enum.reduce(%{}, fn {item, idx}, acc ->
+            case item do
+              {:error, {:constructor, err}} -> Map.put(acc, idx, err)
+              {:error, err} -> Map.put(acc, idx, err)
+              _ -> acc
+            end
+          end)
+
+          if Enum.empty?(errors) do
+            {:ok, mapped}
+          else
+            {:error, {:constructor, errors}}
+          end
         end
       end
 
