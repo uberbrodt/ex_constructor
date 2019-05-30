@@ -86,7 +86,7 @@ defmodule ConstructorTest do
     @impl Constructor
     def after_construct(%{first_name: fname} = v) do
       if fname != "James" do
-        {:error, {:constructor, [first_name: "must be James"]}}
+        {:error, {:constructor, %{first_name: "must be James"}}}
       else
         {:ok, v}
       end
@@ -154,7 +154,7 @@ defmodule ConstructorTest do
       args = %{age: 7.54, id: "foo", name: "Chris", child: %{name: "Otis"}}
 
       assert ConstructorTest.new(args) ==
-               {:error, {:constructor, [age: "must be an integer"]}}
+               {:error, {:constructor, %{age: "must be an integer"}}}
     end
 
     test "turns a list of maps into {:ok, [struct]}" do
@@ -167,7 +167,7 @@ defmodule ConstructorTest do
 
     test "turns a list of maps with an error into {:error, {:constructor, %{idx => errors}}}}" do
       subject = [%{name: "Otis"}, %{name: 12}]
-      assert {:error, {:constructor, %{1 => [name: "must be a string"]}}} = TestChild.new(subject)
+      assert {:error, {:constructor, %{1 => %{name: "must be a string"}}}} = TestChild.new(subject)
     end
 
     test "nil :child is converted to empty struct" do
@@ -186,14 +186,14 @@ defmodule ConstructorTest do
       arg = %{age: 34, name: "", child: default_child()}
 
       assert ConstructorTest.new(arg) ==
-               {:error, {:constructor, [id: "is required", name: "is required"]}}
+               {:error, {:constructor, %{id: "is required", name: "is required"}}}
     end
 
     test "returns error from :child on it's :name constructor" do
       arg = %{name: "Chris", id: "foo", child: %{id: "foo", age: 2}}
 
       assert ConstructorTest.new(arg) ==
-               {:error, {:constructor, [child: [name: "is required"]]}}
+               {:error, {:constructor, %{child: %{name: "is required"}}}}
     end
 
     test "converts StepChild struct to TestChild" do
@@ -225,21 +225,21 @@ defmodule ConstructorTest do
       args = %{first_name: "foo"}
 
       assert ConstructorLists.new(args) ==
-               {:error, {:constructor, [first_name: "'foo' does not meet length of 12"]}}
+               {:error, {:constructor, %{first_name: "'foo' does not meet length of 12"}}}
     end
 
     test "if function in list returns error tuple, halt running functions and return error" do
       args = %{first_name: 12}
 
       assert ConstructorLists.new(args) ==
-               {:error, {:constructor, [first_name: "must be a string"]}}
+               {:error, {:constructor, %{first_name: "must be a string"}}}
     end
 
     test "list of function captures for :constructor" do
       args = %{first_name: "Christopoulos", last_name: "Jones"}
 
       assert ConstructorLists.new(args) ==
-               {:error, {:constructor, [last_name: "'Jones' does not meet length of 10"]}}
+               {:error, {:constructor, %{last_name: "'Jones' does not meet length of 10"}}}
     end
   end
 
@@ -268,7 +268,7 @@ defmodule ConstructorTest do
   describe "after_construct/1" do
     test "returns error if first_name is not James" do
       args = %{first_name: "Chris", id: "foo"}
-      assert JamesUser.new(args) == {:error, {:constructor, [first_name: "must be James"]}}
+      assert JamesUser.new(args) == {:error, {:constructor, %{first_name: "must be James"}}}
     end
   end
 

@@ -18,7 +18,7 @@ defmodule Constructor do
   end
 
   DocTestUser.new(id: "foo", first_name: 37)
-  {:error, {:constructor, [id: "must be an integer", first_name: "must be an integer"]}}
+  {:error, {:constructor, %{id: "must be an integer", first_name: "must be an integer"}}}
 
   iex> DocTestUser.new(id: 12, first_name: "Chris")
   {:ok, %DocTestUser{id: 12, first_name: "Chris", last_name: ""}}
@@ -307,7 +307,7 @@ defmodule Constructor do
     if Enum.empty?(errors) do
       {:ok, struct}
     else
-      {:error, Enum.reverse(errors)}
+      {:error, Enum.into(errors, %{})}
     end
   end
 
