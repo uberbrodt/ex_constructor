@@ -92,8 +92,12 @@ defmodule Constructor.ConvertTest do
       assert Convert.to_integer(nil) == {:ok, 0}
     end
 
-    test ~s("32.34" fails validation") do
+    test ~s("32.34" converts to 32") do
       assert Convert.to_integer("32.34") == {:error, "must be an integer"}
+    end
+
+    test ~s(32.34 converts to 32") do
+      assert Convert.to_integer(32.34) == {:ok, 32}
     end
   end
 

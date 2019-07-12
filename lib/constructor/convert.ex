@@ -39,6 +39,7 @@ defmodule Constructor.Convert do
       case v do
         nil -> 0
         "" -> 0
+        x when is_float(x) -> Kernel.trunc(x)
         x when is_binary(x) -> String.to_integer(x)
         x -> x
       end

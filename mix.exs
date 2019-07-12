@@ -4,7 +4,7 @@ defmodule Constructor.MixProject do
   def project do
     [
       app: :constructor,
-      version: "1.0.0-rc.3",
+      version: "1.0.0-rc.4",
       description: description(),
       docs: [main: Constructor],
       elixir: "~> 1.7",

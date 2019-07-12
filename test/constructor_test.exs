@@ -151,7 +151,7 @@ defmodule ConstructorTest do
     end
 
     test "construct fails age validation and returns errors" do
-      args = %{age: 7.54, id: "foo", name: "Chris", child: %{name: "Otis"}}
+      args = %{age: "7.54", id: "foo", name: "Chris", child: %{name: "Otis"}}
 
       assert ConstructorTest.new(args) ==
                {:error, {:constructor, %{age: "must be an integer"}}}
@@ -245,7 +245,7 @@ defmodule ConstructorTest do
 
   describe "new!/1" do
     test "construct fails age validation and raises ConstructorException" do
-      args = %{age: 7.54, id: "foo", name: "Chris", child: %{name: "Otis"}}
+      args = %{age: "7.54", id: "foo", name: "Chris", child: %{name: "Otis"}}
 
       assert_raise(Constructor.ConstructorException, fn -> ConstructorTest.new!(args)  end)
     end
