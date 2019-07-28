@@ -1,65 +1,150 @@
 defmodule Constructor do
   @moduledoc ~S"""
-  Constructor is a library that reduces boilerplate when defining stucts by enabling per-field
-  validations and generating methods that are used to "construct" a struct.
+  Constructor is a DSL for defining and validating structs.
 
-  A simple example is the following:
+
+  ## Introduction
+
+  To illustrate, let's take a basic `User` struct you might have in your app.
+
+  ```
+  defmodule ConstructorExampleUser do
+    @enforce_keys [:id, :role]
+    @allowed_keys ["id", "role", "first_name", "last_name"]
+
+    @type t :: %__MODULE__{
+      id: integer,
+      role: :user | :admin,
+      first_name: String.t(),
+      last_name: String.t()
+    }
+
+    defstruct [:id, :role, first_name: "", last_name: ""]
+
+    def new(v) when is_map(v) do
+      struct = v |> convert_to_struct()
+      with :ok <- is_integer(struct.id),
+        :ok <- is_valid_role(struct.role),
+        :ok <- is_string(struct.first_name),
+        :ok <- is_string(struct.last_name) do
+          {:ok, struct}
+      else
+        {:error, e} -> {:error, {:constructor, e}}
+      end
+    end
+
+    def map_to_struct(v) do
+      mapped = Enum.map(v, fn {key, value} ->
+        if Enum.any?(@allowed_keys, fn x -> x == key end) do
+          {String.to_atom(key), v}
+        else
+          {key, v}
+        end
+      end)
+      struct(__MODULE__, mapped)
+    end
+
+    def is_string(value) do
+      case value do
+        x when is_binary(x) -> :ok
+        _ -> {:error, "must be a string"}
+      end
+    end
+
+    def is_integer(value) do
+      case value do
+        x when Kernel.is_integer(x) -> :ok
+        _ -> {:error, "must be an integer"}
+      end
+    end
+
+    def is_valid_role(value) do
+      case value do
+        :admin -> :ok
+        :user -> :ok
+        _ -> {:error, "invalid role"}
+      end
+    end
+  end
+  ```
+
+  Elixir code such as this is pretty standard in most projects (especially those without Ecto).
+  It's explicit, and good for taking input from a user or deserializing a struct from JSON.
+  But it has some flaws:
+
+  1. It returns on the first validation failure, so the user will have to fix and submit again in
+     order to find out if there's another error.
+  2. You have duplication of field names in the `@type`, `defstruct` and `@allowed_keys` declarations.
+     A real pain to change each time you add or remove a field, with the `@type` tending to fall out of
+     sync with the rest of the module quickly.
+  3. It's a lot of code! Some parts, such as `is_integer/1` and `is_string/1`, can easily apply across
+     projects. A production-ready implementation of `map_to_struct/1` would need to be expanded to
+     handle nested structs and lists, all of which needs to be tested.
+
+  Constructor solves this problem by providing a `constructor/2` macro that allows you to define a
+  field, typespecs, enforced keys, validations, and coercions all in a handful of lines. Here's how
+  you would write the above struct with Constructor.
 
 
   ```
-  defmodule DocTestUser do
+  defmodule ConstructorExampleUser do
     use Constructor
 
     constructor do
-      field :id, :integer, constructor: &is_integer/1
+      field :id, :integer, constructor: &is_integer/1, enforce: true
+      field :role,  :user | :admin, constructor: &is_valid_role/1, enforce: true
       field :first_name, :string, default: "", constructor: &is_string/1
       field :last_name, :string, default: "", constructor: &is_string/1
     end
+
+    def is_valid_role(value) do
+      case value do
+        :admin -> {:ok, value}
+        :user -> {:ok, value}
+        _ -> {:error, "invalid role!"}
+      end
+    end
   end
-
-  DocTestUser.new(id: "foo", first_name: 37)
-  {:error, {:constructor, %{id: "must be an integer", first_name: "must be an integer"}}}
-
-  iex> DocTestUser.new(id: 12, first_name: "Chris")
-  {:ok, %DocTestUser{id: 12, first_name: "Chris", last_name: ""}}
-
-  iex> DocTestUser.new!(id: 12, first_name: "Chris")
-  %DocTestUser{id: 12, first_name: "Chris", last_name: ""}
   ```
 
-  A few things to note here:
-    * `new/1` and `new!/1` functions are generated, and accept a map, keyword list or a list of maps
-    * The `:construct` functions are run for each field, and any errors are returned in a keyword
-      list
-    * `default` values are applied *before* the `:construct` functions
-    * `Constructor.Validate` and `Constructor.Convert` are automatically aliased
-    * the `:construct` attribute accepts either a function capture (as above), a {M,F,A} tuple, or a
-    list of function captures or MFA tuples.
+  Most of the underlying functionality for Constructor is provided by `:typed_struct`. The
+  `TypedStruct.field/3` macro has been expanded to collect the `:constructor` option, which is than
+  used by the generated `new/1` methods. I won't repeat the `TypedStruct` documentation here, but it's
+  important to note that `constructor/2` should behave the same as `TypedStruct.typedstruct/2` in
+  all respects that aren't Constructor specific.
 
+  You can see that unlike our previous `new/1` method, this one will accept keyword lists as well as
+  maps and return errors for multiple fields.
+
+  ```
+  iex> ConstructorExampleUser.new(id: "foo", role: :admin, first_name: 37)
+  {:error, {:constructor, %{id: "must be an integer", first_name: "must be an integer"}}}
+
+  iex> ConstructorExampleUser.new(id: 12, role: :admin, first_name: "Chris")
+  {:ok, %ConstructorExampleUser{id: 12, first_name: "Chris", last_name: ""}}
+
+  iex> ConstructorExampleUser.new!(id: 12, role: :admin, first_name: "Chris")
+  %ConstructorExampleUser{id: 12, first_name: "Chris", last_name: ""}
+  ```
 
   Any function that conforms to `t:constructor_fun/1` can be used in the `construct` field.
   Additionally, a `new/1` function can also be used to build out a nested struct. For example:
 
   ```
-  defmodule DocTestAdmin do
+  defmodule ConstructorExampleAdmin do
     use Constructor
 
     constructor do
-      field :id, :integer, construct: &Validate.is_integer/1
-      field :user, DocTestUser.t(), construct: &DocTestUser.new/1
+      field :id, :integer, constructor: &Validate.is_integer/1
+      field :user, ConstructorExampleUser.t(), constructor: &ConstructorExampleUser.new/1
     end
   end
 
-  iex> DocTestAdmin.new!(id: 22, user: %{id: 22, first_name: "Chris"})
-  %DocTestAdmin{id: 22, user: %DocTestUser{id: 22, first_name: "Chris"}}
+  iex> ConstructorExampleAdmin.new!(id: 22, user: %{id: 22, first_name: "Chris"})
+  %ConstructorExampleAdmin{id: 22, user: %ConstructorExampleUser{id: 22, first_name: "Chris"}}
   ```
-
-
-  ## Acknowledgements
-  This library was born from the lack of a lightweight (but powerful!) validation library in Elixir
-  that doesn't depend on Ecto. The `constructor` macro comes almost entirely from the excellent
-  `typed_struct` library, save for a plugin mechanism.
   """
+
 
   defmodule ConstructorException do
     @moduledoc false
@@ -68,31 +153,69 @@ defmodule Constructor do
 
   @type new_opts :: [nil_to_empty: boolean]
 
+  @typedoc """
+  The `:constructor` option for the `TypedStruct.field/3` macro. The {m,f,a} will be used as
+  arguments to `apply/3`. A list of 1-arity funs and/or MFA tuples is also valid.
+  """
+  @type constructor :: constructor_fun | {m :: module, f :: atom, a :: list(any)} | [constructor_fun | {module, atom, list(any)}]
+
+  @typedoc """
+  Custom functions to be used in `TypedStruct.field/3` should conform to this spec.
+  """
   @type constructor_fun :: (field_item :: any -> field_item :: any | {:error, String.t()})
 
+  @doc """
+  See `c:new/2`
+  """
   @callback new(input :: map | keyword | list(map)) ::
               {:ok, struct | list(struct) | nil} | {:error, {:constructor, map}}
 
   @doc """
-  Build this struct from a map, struct or keyword list. Also accepts a list of maps that will be
-  iterated to convert each to the new function.
+  This function is generated by the `constructor/2` macro, and will convert `input` into the struct
+  it defines.
 
-  ### Opts
-  - `nil_to_empty`: if `true`, convert a nil `input` into an empty struct. Defaults to `true`
+  After it coerces `input` into the appropriate struct, it will call `c:before_construct/1`.
+  If that is successful, all the `:constructor` options are evaluated. Each field is evaluated individually,
+  and all errors will be collected and returned. Otherwise, `c:after_construct/1` is called and the
+  result returned.
+
+  ## Parameters
+  - `input` - can be a map, a keyword list or a list of maps. Whichever it is will determine the
+    return type.
+  - `opts` - a keyword list of the following options:
+    - `:nil_to_empty` - overrides what was set on `constructor/2`
+
+  ## Returns
+  If `input` is a map or keyword list, the return type will be `{:ok, module}`. If it is a list
+  of maps, it will try and convert each element of the list to the the module, returning
+  `{:ok, [module]}`.
+
+  In the event of an error, `{:error, {:constructor, map}}` is returned. The `map` keys are
+  the struct parameters and the values are a list of errors for that field.
+
+  ```
+    iex> ConstructorExampleUser.new(id: "foo", role: :admin, first_name: 37)
+    {:error, {:constructor, %{id: "must be an integer", first_name: "must be an integer"}}}
+  ```
+
   """
   @callback new(input :: map | keyword | list(map), opts :: new_opts) ::
               {:ok, struct | list(struct) | nil} | {:error, {:constructor, map}}
 
-  @callback new!(input :: map | keyword | list(map) | nil) :: struct | nil | no_return
+  @doc """
+  See `c:new!/2`
+  """
+  @callback new!(input :: map | keyword | list(map) | nil) :: struct | [struct] | nil | no_return
+
 
   @doc """
-  Same as `new/2`, but returns the untagged struct or raises a ConstructorException
+  Same as `c:new/2`, but returns the untagged struct or raises a ConstructorException
   """
   @callback new!(input :: map | keyword | list(map | nil), opts :: new_opts) ::
-              struct | nil | no_return
+              struct | [struct] | nil | no_return
 
   @doc """
-  The callback can be used to modify an input to `new/2` before the constructor functions are
+  The callback can be used to modify an input to `c:new/2` before the constructor functions are
   called.
   """
   @callback before_construct(any) :: {:ok, any} | {:error, {:constructor, map}}
@@ -113,10 +236,32 @@ defmodule Constructor do
   end
 
   @doc """
-  Declare a struct and it's fields. Set's the default options for the struct.
+  Declare a struct and other attributes, in conjunction with the `TypedStruct.field/3` macro.
 
-  ### Opts
-  - `nil_to_empty`: if `true`, convert a nil `input` into an empty struct. Defaults to `true`
+  `Constructor.Validate` and `Constructor.Convert` are automatically imported for the scope of this call
+  only.
+
+  ## Examples
+
+  ```
+  defmodule Car
+    constructor do
+      # `:constructor` options are evaluated *after* `:default` or other options.
+      field :make, String.t(), default: "", constructor: &is_string/1
+      field :model, String.t(), constructor: {Validate, :is_string, []}
+      # when a `:constructor` is defined as a MFA tuple, the field value from input is passed as the
+      # 1st argument, with the arguments defined here appended.
+      field :vin, String.t(), constructor: [&is_string/1, {CustomValidation, :min_length, [17]}]
+    end
+  end
+  ```
+
+
+  ## Opts
+  *Note:* All opts that `TypedStruct.typedstruct/2` accepts can be passed here as well.
+
+  - `:nil_to_empty` - Whenever `c:new/2` receives a `nil` argument, it will return an empty struct
+    with defaults set.  If instead you would like to receive `nil` back, set this option to `false`.
   """
   @spec constructor(opts :: keyword) :: Macro.t()
   defmacro constructor(opts \\ [], do: block) do
@@ -221,14 +366,14 @@ defmodule Constructor do
             end
 
           errors =
-          Enum.with_index(mapped)
-          |> Enum.reduce(%{}, fn {item, idx}, acc ->
-            case item do
-              {:error, {:constructor, err}} -> Map.put(acc, idx, err)
-              {:error, err} -> Map.put(acc, idx, err)
-              _ -> acc
-            end
-          end)
+            Enum.with_index(mapped)
+            |> Enum.reduce(%{}, fn {item, idx}, acc ->
+              case item do
+                {:error, {:constructor, err}} -> Map.put(acc, idx, err)
+                {:error, err} -> Map.put(acc, idx, err)
+                _ -> acc
+              end
+            end)
 
           if Enum.empty?(errors) do
             {:ok, mapped}
