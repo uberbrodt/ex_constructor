@@ -5,9 +5,9 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Validate.is_string/1
-      field :name, :string, constructor: &Validate.is_nonempty_string/1
-      field :age, :integer, constructor: &Convert.to_integer/1
+      field :id, :string, default: "", constructor: &is_string/1
+      field :name, :string, constructor: &is_nonempty_string/1
+      field :age, :integer, constructor: &to_integer/1
     end
   end
 
@@ -15,9 +15,9 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
-      field :age, :integer, default: 0, constructor: &Convert.to_integer/1
-      field :name, :string, constructor: &Validate.is_nonempty_string/1
+      field :id, :string, default: "", constructor: &is_nonempty_string/1
+      field :age, :integer, default: 0, constructor: &to_integer/1
+      field :name, :string, constructor: &is_nonempty_string/1
       field :child, TestChild.t(), constructor: &TestChild.new/1
       field :step_children, [TestChild.t()], default: [], constructor: &TestChild.new/1
     end
@@ -28,8 +28,8 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Validate.is_string/1
-      field :name, :string, constructor: &Validate.is_nonempty_string/1
+      field :id, :string, default: "", constructor: &is_string/1
+      field :name, :string, constructor: &is_nonempty_string/1
     end
   end
 
@@ -38,7 +38,7 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "test_id", constructor: &Validate.is_string/1
+      field :id, :string, default: "test_id", constructor: &is_string/1
     end
   end
 
@@ -47,7 +47,7 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor nil_to_empty: false do
-      field :id, :string, default: "test_id", constructor: &Validate.is_string/1
+      field :id, :string, default: "test_id", constructor: &is_string/1
     end
   end
 
@@ -56,9 +56,9 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
-      field :first_name, :string, constructor: &Validate.is_nonempty_string/1
-      field :last_name, :string, constructor: &Validate.is_string/1
+      field :id, :string, default: "", constructor: &is_nonempty_string/1
+      field :first_name, :string, constructor: &is_nonempty_string/1
+      field :last_name, :string, constructor: &is_string/1
     end
 
     @impl Constructor
@@ -78,9 +78,9 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
-      field :first_name, :string, constructor: &Validate.is_nonempty_string/1
-      field :last_name, :string, default: "", constructor: &Validate.is_string/1
+      field :id, :string, default: "", constructor: &is_nonempty_string/1
+      field :first_name, :string, constructor: &is_nonempty_string/1
+      field :last_name, :string, default: "", constructor: &is_string/1
     end
 
     @impl Constructor
@@ -110,7 +110,7 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
+      field :id, :string, default: "", constructor: &is_nonempty_string/1
       field :child, SimpleChild.t(), constructor: {SimpleChild, :new, [[nil_to_empty: false]]}
     end
   end
@@ -124,7 +124,7 @@ defmodule ConstructorTest do
 
       field :last_name, String.t(),
         default: "Christopher",
-        constructor: [&Validate.is_string/1, &__MODULE__.string_length/1]
+        constructor: [&is_string/1, &__MODULE__.string_length/1]
     end
 
     def string_length(v, size \\ 10) do
@@ -140,7 +140,7 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &Validate.is_nonempty_string/1
+      field :id, :string, default: "", constructor: &is_nonempty_string/1
       field :child, SimpleChildConstructorOpts.t(), constructor: &SimpleChildConstructorOpts.new/1
     end
   end

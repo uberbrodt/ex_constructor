@@ -11,9 +11,9 @@ defmodule Constructor do
     use Constructor
 
     constructor do
-      field :id, :integer, construct: &Validate.is_integer/1
-      field :first_name, :string, default: "", construct: &Validate.is_string/1
-      field :last_name, :string, default: "", construct: &Validate.is_string/1
+      field :id, :integer, constructor: &is_integer/1
+      field :first_name, :string, default: "", constructor: &is_string/1
+      field :last_name, :string, default: "", constructor: &is_string/1
     end
   end
 
@@ -109,7 +109,6 @@ defmodule Constructor do
     quote location: :keep do
       @behaviour unquote(behaviour_mod)
       import Constructor, only: [constructor: 1, constructor: 2]
-      alias Constructor.{Construct, Convert, Validate}
     end
   end
 
@@ -124,6 +123,9 @@ defmodule Constructor do
     opts = Keyword.put(opts, :plugins, [Constructor.TypedStructPlugin])
 
     quote location: :keep do
+      alias Constructor.{Convert, Validate}
+      import Constructor.Convert
+      import Constructor.Validate
       Module.register_attribute(__MODULE__, :constructors, accumulate: true)
 
       require TypedStruct
@@ -135,6 +137,8 @@ defmodule Constructor do
       Constructor._default_impl(_opts)
       Constructor._new(unquote(opts))
       defoverridable before_construct: 1, after_construct: 1
+      import Constructor.Convert, only: []
+      import Constructor.Validate, only: []
     end
   end
 
