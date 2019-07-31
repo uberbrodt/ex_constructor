@@ -114,7 +114,7 @@ defmodule Constructor do
 
   ```
   iex> ConstructorExampleUser.new(id: "foo", role: :admin, first_name: 37)
-  {:error, {:constructor, %{id: "must be an integer", first_name: "must be an integer"}}}
+  {:error, {:constructor, %{id: "must be an integer", first_name: "must be a string"}}}
 
   iex> ConstructorExampleUser.new(id: 12, role: :admin, first_name: "Chris")
   {:ok, %ConstructorExampleUser{id: 12, first_name: "Chris", last_name: ""}}
@@ -124,7 +124,7 @@ defmodule Constructor do
   ```
 
   Any function that conforms to `t:constructor_fun/0` can be used in the `construct` field.
-  Additionally, a `b:new/1` function can also be used to build out a nested struct. For example:
+  Additionally, a `c:new/1` function can also be used to build out a nested struct. For example:
 
   ```
   defmodule ConstructorExampleAdmin do
@@ -139,6 +139,16 @@ defmodule Constructor do
   iex> ConstructorExampleAdmin.new!(id: 22, user: %{id: 22, first_name: "Chris"})
   %ConstructorExampleAdmin{id: 22, user: %ConstructorExampleUser{id: 22, first_name: "Chris"}}
   ```
+
+  ## Custom Validation Functions
+
+  Custom validation functions will need to confrom to the `t:constructor/0` typespec. The test suite
+  has many examples.
+
+  ## Optional Callbacks
+
+  `before_construct/1` and `after_construct/1` can be implemented if you have a validation that
+  works on multiple fields (ie. the valid value of field `:b` depends on the value of field `:a`).
   """
 
 
@@ -152,8 +162,10 @@ defmodule Constructor do
   @type new_opts :: [nil_to_empty: boolean]
 
   @typedoc """
-  The `:constructor` option for the `TypedStruct.field/3` macro. The {m,f,a} will be used as
-  arguments to `apply/3`. A list of 1-arity funs and/or MFA tuples is also valid.
+  The `:constructor` option for the `TypedStruct.field/3` macro. The first form is a 1-arity
+  function capture. The {m,f,a} form will be used as arguments to `apply/3`. This will allow use of
+  N-arity functions, because the field value will always be passed as a first argument, with the
+  provided args appended.  A list of 1-arity funs and/or MFA tuples is also valid.
   """
   @type constructor :: constructor_fun | {m :: module, f :: atom, a :: list(any)} | [constructor_fun | {module, atom, list(any)}]
 
@@ -276,7 +288,7 @@ defmodule Constructor do
 
       def __constructors__, do: Enum.reverse(@constructors)
 
-      Constructor._field_constructors()
+      Constructor.__field_constructors__()
       Constructor._default_impl(_opts)
       Constructor._new(unquote(opts))
       defoverridable before_construct: 1, after_construct: 1
@@ -384,7 +396,7 @@ defmodule Constructor do
       @impl Constructor
       def new(map, opts) when is_map(map) do
         with {:ok, struct} <- before_construct(map),
-             {:ok, constructed} <- _field_constructors(struct),
+             {:ok, constructed} <- __field_constructors__(struct),
              {:ok, after_constructed} <- after_construct(constructed) do
           {:ok, after_constructed}
         end
@@ -400,19 +412,19 @@ defmodule Constructor do
     end
   end
 
-  defmacro _field_constructors() do
+  defmacro __field_constructors__() do
     quote location: :keep do
-      @spec _field_constructors(in_struct :: struct) :: {:ok, struct} | {:error, any}
-      def _field_constructors(in_struct) do
+      @spec __field_constructors__(in_struct :: struct) :: {:ok, struct} | {:error, any}
+      def __field_constructors__(in_struct) do
         results =
           Enum.into(__constructors__(), [], fn {field_name, construct_fun} ->
             field = Map.get(in_struct, field_name)
-            result = Constructor._exec_field_fun(construct_fun, field)
+            result = Constructor.__exec_field_fun__(construct_fun, field)
 
             {field_name, result}
           end)
 
-        case Constructor._process_result(results, in_struct) do
+        case Constructor.__process_result__(results, in_struct) do
           {:ok, struct} = x -> x
           {:error, errors} -> {:error, {:constructor, errors}}
         end
@@ -420,18 +432,18 @@ defmodule Constructor do
     end
   end
 
-  def _exec_field_fun(functions, field) when is_list(functions) do
+  def __exec_field_fun__(functions, field) when is_list(functions) do
     case Enum.reduce(functions, field, &process_field_funs/2) do
       {:error, _} = e -> e
       result -> {:ok, result}
     end
   end
 
-  def _exec_field_fun({m, f, a}, field) do
+  def __exec_field_fun__({m, f, a}, field) do
     apply(m, f, [field | a])
   end
 
-  def _exec_field_fun(fun, field) do
+  def __exec_field_fun__(fun, field) do
     fun.(field)
   end
 
@@ -440,13 +452,13 @@ defmodule Constructor do
   end
 
   defp process_field_funs(fun, accumulator) do
-    case _exec_field_fun(fun, accumulator) do
+    case __exec_field_fun__(fun, accumulator) do
       {:ok, field} -> field
       {:error, _} = e -> e
     end
   end
 
-  def _process_result(results, struct) do
+  def __process_result__(results, struct) do
     do_process_result(results, struct, [])
   end
 

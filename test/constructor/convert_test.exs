@@ -193,6 +193,14 @@ defmodule Constructor.ConvertTest do
       assert Convert.to_boolean("true") == {:ok, true}
     end
 
+    test ~s("TRUE" converted to true") do
+      assert Convert.to_boolean("TRUE") == {:ok, true}
+    end
+
+    test ~s("Tr123@" is an error") do
+      assert Convert.to_boolean("Tr123@" ) == {:error, "must be a boolean"}
+    end
+
     test ~s("false" converted to false) do
       assert Convert.to_boolean("false") == {:ok, false}
     end

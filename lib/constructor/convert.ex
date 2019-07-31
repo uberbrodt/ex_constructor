@@ -103,7 +103,8 @@ defmodule Constructor.Convert do
 
   In order to be useful, this function makes some assumptions about what is truth-y or false-y.
 
-  * `"true"` and `"false"` are converted to `true` and `false` respectively
+  * `"true"` and `"false"` are converted to `true` and `false` respectively. All strings are
+    downcased first.
   * integers and floats greater than 0 are `true`
   * integers and floats less than or equal to 0 are `false`
   * `nil` and `""` are `false`
@@ -111,16 +112,19 @@ defmodule Constructor.Convert do
   """
   @spec to_boolean(any) :: {:ok, boolean} | error
   def to_boolean(v) do
-    case v do
-      "true" -> true
-      "false" -> false
-      nil -> false
-      "" -> false
-      x when is_integer(x) and x > 0 -> true
-      x when is_integer(x) and x <= 0 -> false
-      x when is_float(x) and x > 0 -> true
-      x when is_float(x) and x <= 0 -> false
-      x -> x
+    try do
+      case v do
+        nil -> false
+        "" -> false
+        x when is_binary(x) -> x |> String.downcase() |> String.to_existing_atom()
+        x when is_integer(x) and x > 0 -> true
+        x when is_integer(x) and x <= 0 -> false
+        x when is_float(x) and x > 0 -> true
+        x when is_float(x) and x <= 0 -> false
+        x -> x
+      end
+    rescue
+      ArgumentError -> v
     end
     |> Validate.is_boolean()
   end
