@@ -99,6 +99,11 @@ defmodule Constructor.ConvertTest do
     test ~s(32.34 converts to 32") do
       assert Convert.to_integer(32.34) == {:ok, 32}
     end
+
+    test ~s("foo" returns an error) do
+      assert Convert.to_integer("foo") == {:error, "must be an integer"}
+    end
+
   end
 
   describe "to_integer_or_nil" do
@@ -200,20 +205,40 @@ defmodule Constructor.ConvertTest do
       assert Convert.to_boolean("") == {:ok, false}
     end
 
-    test ~s(1 converted to true) do
-      assert Convert.to_boolean(1) == {:ok, true}
-    end
-
     test ~s(0 converted to false) do
       assert Convert.to_boolean(0) == {:ok, false}
     end
 
-    test ~s(0.0 raises error ) do
-      assert Convert.to_boolean(0.0) == {:error, "must be a boolean"}
+    test ~s(-5 converted to false) do
+      assert Convert.to_boolean(-5) == {:ok, false}
     end
 
-    test ~s(1.0 raised an error) do
-      assert Convert.to_boolean(1.0) == {:error, "must be a boolean"}
+    test ~s(1 converted to true) do
+      assert Convert.to_boolean(1) == {:ok, true}
+    end
+
+    test ~s(12 converted to true) do
+      assert Convert.to_boolean(12) == {:ok, true}
+    end
+
+    test ~s(0.0 converted to false) do
+      assert Convert.to_boolean(0.0) == {:ok, false}
+    end
+
+    test ~s(-5.0 converted to false) do
+      assert Convert.to_boolean(-5.0) == {:ok, false}
+    end
+
+    test ~s(1.0 converted to true) do
+      assert Convert.to_boolean(1.0) == {:ok, true}
+    end
+
+    test ~s(5.0 converted to true) do
+      assert Convert.to_boolean(5.0) == {:ok, true}
+    end
+
+    test ~s(:true returns {:ok, true}) do
+      assert Convert.to_boolean(:true) == {:ok, true}
     end
   end
 
@@ -241,14 +266,6 @@ defmodule Constructor.ConvertTest do
     test ~s(0 converted to false) do
       assert Convert.to_boolean_or_nil(0) == {:ok, false}
     end
-
-    test ~s(0.0 raises error ) do
-      assert Convert.to_boolean_or_nil(0.0) == {:error, "must be a boolean"}
-    end
-
-    test ~s(1.0 raised an error) do
-      assert Convert.to_boolean_or_nil(1.0) == {:error, "must be a boolean"}
-    end
   end
 
   describe "to_atom/1" do
@@ -262,6 +279,25 @@ defmodule Constructor.ConvertTest do
 
     test ~s("foo" converted to :foo) do
       assert Convert.to_atom("foo") == {:ok, :foo}
+    end
+  end
+
+
+  describe "to_existing_atom/1" do
+    test "nil remains nil" do
+      assert Convert.to_existing_atom(nil) == {:ok, nil}
+    end
+
+    test ":foo remains :foo" do
+      assert Convert.to_existing_atom(:foo) == {:ok, :foo}
+    end
+
+    test ~s("foo" converted to :foo) do
+      assert Convert.to_existing_atom("foo") == {:ok, :foo}
+    end
+
+    test ~s("23098.sd9234" is not an existing atom) do
+      assert Convert.to_existing_atom("23098.sd9234") == {:error, "23098.sd9234 is not an existing atom"}
     end
   end
 

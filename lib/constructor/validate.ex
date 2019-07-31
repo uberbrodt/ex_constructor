@@ -8,7 +8,7 @@ defmodule Constructor.Validate do
 
 
   @doc """
-  Checks if input is a `%Date{}`
+  Checks if input is a `t:Date.t/0`
 
   ## Examples
 
