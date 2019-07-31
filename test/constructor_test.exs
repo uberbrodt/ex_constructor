@@ -6,7 +6,7 @@ defmodule ConstructorTest do
 
     constructor do
       field :id, :string, default: "", constructor: &is_string/1
-      field :name, :string, constructor: &is_nonempty_string/1
+      field :name, :string, constructor: &is_not_blank/1
       field :age, :integer, constructor: &to_integer/1
     end
   end
@@ -15,9 +15,9 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &is_nonempty_string/1
+      field :id, :string, default: "", constructor: &is_not_blank/1
       field :age, :integer, default: 0, constructor: &to_integer/1
-      field :name, :string, constructor: &is_nonempty_string/1
+      field :name, :string, constructor: &is_not_blank/1
       field :child, TestChild.t(), constructor: &TestChild.new/1
       field :step_children, [TestChild.t()], default: [], constructor: &TestChild.new/1
     end
@@ -29,7 +29,7 @@ defmodule ConstructorTest do
 
     constructor do
       field :id, :string, default: "", constructor: &is_string/1
-      field :name, :string, constructor: &is_nonempty_string/1
+      field :name, :string, constructor: &is_not_blank/1
     end
   end
 
@@ -56,8 +56,8 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &is_nonempty_string/1
-      field :first_name, :string, constructor: &is_nonempty_string/1
+      field :id, :string, default: "", constructor: &is_not_blank/1
+      field :first_name, :string, constructor: &is_not_blank/1
       field :last_name, :string, constructor: &is_string/1
     end
 
@@ -78,8 +78,8 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &is_nonempty_string/1
-      field :first_name, :string, constructor: &is_nonempty_string/1
+      field :id, :string, default: "", constructor: &is_not_blank/1
+      field :first_name, :string, constructor: &is_not_blank/1
       field :last_name, :string, default: "", constructor: &is_string/1
     end
 
@@ -110,7 +110,7 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &is_nonempty_string/1
+      field :id, :string, default: "", constructor: &is_not_blank/1
       field :child, SimpleChild.t(), constructor: {SimpleChild, :new, [[nil_to_empty: false]]}
     end
   end
@@ -140,7 +140,7 @@ defmodule ConstructorTest do
     use Constructor
 
     constructor do
-      field :id, :string, default: "", constructor: &is_nonempty_string/1
+      field :id, :string, default: "", constructor: &is_not_blank/1
       field :child, SimpleChildConstructorOpts.t(), constructor: &SimpleChildConstructorOpts.new/1
     end
   end
@@ -186,14 +186,14 @@ defmodule ConstructorTest do
       arg = %{age: 34, name: "", child: default_child()}
 
       assert ConstructorTest.new(arg) ==
-               {:error, {:constructor, %{id: "is required", name: "is required"}}}
+               {:error, {:constructor, %{id: "must not be blank", name: "must not be blank"}}}
     end
 
     test "returns error from :child on it's :name constructor" do
       arg = %{name: "Chris", id: "foo", child: %{id: "foo", age: 2}}
 
       assert ConstructorTest.new(arg) ==
-               {:error, {:constructor, %{child: %{name: "is required"}}}}
+               {:error, {:constructor, %{child: %{name: "must be a string"}}}}
     end
 
     test "converts StepChild struct to TestChild" do
@@ -247,7 +247,7 @@ defmodule ConstructorTest do
     test "construct fails age validation and raises ConstructorException" do
       args = %{age: "7.54", id: "foo", name: "Chris", child: %{name: "Otis"}}
 
-      assert_raise(Constructor.ConstructorException, fn -> ConstructorTest.new!(args)  end)
+      assert_raise(Constructor.Exception, fn -> ConstructorTest.new!(args)  end)
     end
   end
 

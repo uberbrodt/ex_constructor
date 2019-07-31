@@ -1,6 +1,7 @@
 defmodule Constructor.ValidateTest do
   @moduledoc false
   use ExUnit.Case, async: true
+  doctest Constructor.Validate
   alias Constructor.Validate
 
   describe "is_boolean/1" do
