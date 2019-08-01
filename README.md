@@ -44,7 +44,7 @@ Add `constructor` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:constructor, "~> 1.0.0-rc.5"}
+    {:constructor, "~> 1.0.0-rc.6"}
   ]
 end
 ```

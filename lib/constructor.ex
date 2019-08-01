@@ -236,6 +236,28 @@ defmodule Constructor do
   This callback runs before everything else. `input` should always be a map.
 
   Useful if you want to do some major changes to the data before further conversion and validation.
+
+  ## Examples
+
+  ```
+  # Skip processing if input is already our expected struct
+  @impl Constructor
+  def before_construct(%__MODULE__{} = input) do
+    {:ok, input}
+  end
+
+  @impl Constructor
+  def before_construct(input) when is_map(input) do
+    # Convert the map keys to atoms if they match this modules.
+    input = Morphix.atomorphiform!(input, __keys__())
+
+    case input do
+      %{name: n, value: v} when is_binary(v) -> {:ok, %__MODULE__{name: n, type: "STRING", value: v}}
+      %{name: n, value: v} when is_integer(v) -> {:ok, %__MODULE__{name: n, type: "INTEGER", value: v}}
+      _ -> {:ok, input} # you could also return an error tuple here
+    end
+  end
+  ```
   """
   @callback before_construct(input :: map) :: {:ok, struct} | {:error, {:constructor, map}}
 
