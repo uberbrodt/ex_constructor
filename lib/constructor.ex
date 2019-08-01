@@ -147,8 +147,14 @@ defmodule Constructor do
 
   ## Optional Callbacks
 
-  `before_construct/1` and `after_construct/1` can be implemented if you have a validation that
-  works on multiple fields (ie. the valid value of field `:b` depends on the value of field `:a`).
+  `c:before_construct/1` and `c:after_construct/1` can be implemented if you need to work with the
+  entire input at once. If the input was a list of maps, the callbacks will be called for each list
+  value.
+
+    - `c:before_construct/1` will be called before anything else, so it allows you to manipulate the
+      raw input before the rest of Constructor works on it.
+    - `c:after_construct/1` will be called last, after everything else. It's good for doing multi-field
+      validatons after the data has been converted and validated.
   """
 
 
@@ -162,10 +168,12 @@ defmodule Constructor do
   @type new_opts :: [nil_to_empty: boolean]
 
   @typedoc """
-  The `:constructor` option for the `TypedStruct.field/3` macro. The first form is a 1-arity
-  function capture. The {m,f,a} form will be used as arguments to `apply/3`. This will allow use of
-  N-arity functions, because the field value will always be passed as a first argument, with the
-  provided args appended.  A list of 1-arity funs and/or MFA tuples is also valid.
+  The `:constructor` option for the `TypedStruct.field/3` macro.
+
+  The first form is a 1-arity function capture. The {m,f,a} form will be used as arguments to
+  `apply/3`. This will allow use of N-arity functions, because the field value will always be passed
+  as a first argument, with the provided args appended.  A list of 1-arity funs and/or MFA tuples is
+  also valid.
   """
   @type constructor :: constructor_fun | {m :: module, f :: atom, a :: list(any)} | [constructor_fun | {module, atom, list(any)}]
 
@@ -225,16 +233,17 @@ defmodule Constructor do
               struct | [struct] | nil | no_return
 
   @doc """
-  The callback can be used to modify an input to `c:new/2` before the constructor functions are
-  called.
+  This callback runs before everything else. `input` should always be a map.
+
+  Useful if you want to do some major changes to the data before further conversion and validation.
   """
-  @callback before_construct(any) :: {:ok, any} | {:error, {:constructor, map}}
+  @callback before_construct(input :: map) :: {:ok, struct} | {:error, {:constructor, map}}
 
   @doc """
   This callback can be used to perform a complex, multi-field validation after all of the per-field
   validations have run.
   """
-  @callback after_construct(struct) :: {:ok, any} | {:error, {:constructor, map}}
+  @callback after_construct(input :: struct) :: {:ok, struct} | {:error, {:constructor, map}}
 
   defmacro __using__(_) do
     behaviour_mod = __MODULE__
@@ -265,7 +274,6 @@ defmodule Constructor do
     end
   end
   ```
-
 
   ## Opts
   *Note:* All opts that `TypedStruct.typedstruct/2` accepts can be passed here as well.
@@ -301,7 +309,7 @@ defmodule Constructor do
     quote do
       @impl Constructor
       def before_construct(struct) do
-        convert_struct(struct)
+        {:ok, struct}
       end
 
       @impl Constructor
@@ -365,7 +373,7 @@ defmodule Constructor do
       @impl Constructor
       def new(list, opts) when is_list(list) do
         if Keyword.keyword?(list) do
-          new(struct(__MODULE__, list), opts)
+          new(Enum.into(list, %{}))
         else
           mapped =
             for map <- list do
@@ -395,7 +403,8 @@ defmodule Constructor do
 
       @impl Constructor
       def new(map, opts) when is_map(map) do
-        with {:ok, struct} <- before_construct(map),
+        with {:ok, before_struct} <- before_construct(map),
+             {:ok, struct} <- convert_struct(before_struct),
              {:ok, constructed} <- __field_constructors__(struct),
              {:ok, after_constructed} <- after_construct(constructed) do
           {:ok, after_constructed}
