@@ -157,7 +157,6 @@ defmodule Constructor do
       validatons after the data has been converted and validated.
   """
 
-
   defmodule Exception do
     @moduledoc """
     Raised from `c:Constructor.new!/2`
@@ -175,12 +174,17 @@ defmodule Constructor do
   as a first argument, with the provided args appended.  A list of 1-arity funs and/or MFA tuples is
   also valid.
   """
-  @type constructor :: constructor_fun | {m :: module, f :: atom, a :: list(any)} | [constructor_fun | {module, atom, list(any)}]
+  @type constructor ::
+          constructor_fun
+          | {m :: module, f :: atom, a :: list(any)}
+          | [constructor_fun | {module, atom, list(any)}]
 
   @typedoc """
   Custom functions to be used in `TypedStruct.field/3` should conform to this spec.
   """
-  @type constructor_fun :: (field_item :: any -> field_item :: {:ok, any} | {:error, String.t()} | {:error, {:constructor, any}})
+  @type constructor_fun ::
+          (field_item :: any ->
+             field_item :: {:ok, any} | {:error, String.t()} | {:error, {:constructor, any}})
 
   @doc """
   See `c:new/2`
@@ -224,7 +228,6 @@ defmodule Constructor do
   See `c:new!/2`
   """
   @callback new!(input :: map | keyword | list(map) | nil) :: struct | [struct] | nil | no_return
-
 
   @doc """
   Same as `c:new/2`, but returns the untagged struct or raises a Constructor.Exception
@@ -309,6 +312,10 @@ defmodule Constructor do
 
     quote location: :keep do
       alias Constructor.{Convert, Validate}
+
+      import Kernel,
+        except: [is_string: 1, is_atom: 1, is_integer: 1, is_float: 1, is_boolean: 1, is_list: 1]
+
       import Constructor.Convert
       import Constructor.Validate
       Module.register_attribute(__MODULE__, :constructors, accumulate: true)
@@ -322,6 +329,7 @@ defmodule Constructor do
       Constructor._default_impl(_opts)
       Constructor._new(unquote(opts))
       defoverridable before_construct: 1, after_construct: 1
+      import Kernel
       import Constructor.Convert, only: []
       import Constructor.Validate, only: []
     end

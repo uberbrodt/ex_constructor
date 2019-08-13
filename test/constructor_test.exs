@@ -81,6 +81,11 @@ defmodule ConstructorTest do
       field :id, :string, default: "", constructor: &is_not_blank/1
       field :first_name, :string, constructor: &is_not_blank/1
       field :last_name, :string, default: "", constructor: &is_string/1
+      field :age, integer, default: 0, constructor: &is_integer/1
+    end
+
+    def test_kernel_import do
+      is_integer(12)
     end
 
     @impl Constructor
@@ -270,6 +275,10 @@ defmodule ConstructorTest do
       args = %{first_name: "Chris", id: "foo"}
       assert JamesUser.new(args) == {:error, {:constructor, %{first_name: "must be James"}}}
     end
+  end
+
+  test "Kernel is re-imported after constructor block" do
+    assert JamesUser.test_kernel_import() == true
   end
 
   def default_child do
