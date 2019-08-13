@@ -44,7 +44,7 @@ Add `constructor` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:constructor, "~> 1.0.0-rc.6"}
+    {:constructor, "~> 1.0"}
   ]
 end
 ```
@@ -74,4 +74,9 @@ It worked, but there were a couple of issues.
 This library was born from the lack of a lightweight and flexible validation library in Elixir.
 However, the design of the `constructor/2` macro and indeed much of the functionality
 is provided by the excellent [TypedStruct](https://github.com/ejpcmac/typed_struct) library.
+
+## Existing TypedStruct users
+If you already depend on TypedStruct, you will need to remove that dependency
+from your mix.exs until the plugin system is released. You can track progress
+[here](https://github.com/ejpcmac/typed_struct/issues/9)
 
