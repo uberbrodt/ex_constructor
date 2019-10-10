@@ -361,6 +361,7 @@ defmodule Constructor do
 
       defp convert_struct(x), do: {:ok, x}
 
+      @doc false
       def key_strings do
         __keys__() |> Enum.map(&Atom.to_string/1)
       end
@@ -370,7 +371,7 @@ defmodule Constructor do
   defmacro _new(opts) when is_list(opts) do
     nil_to_empty_global = Keyword.get(opts, :nil_to_empty, true)
 
-    quote do
+    quote location: :keep do
       @impl Constructor
       def new!(v, opts \\ []) do
         case new(v, opts) do

@@ -29,7 +29,7 @@ defmodule ConstructorTest do
 
     constructor do
       field :id, :string, default: "", constructor: &is_string/1
-      field :name, :string, constructor: &is_not_blank/1
+      field :name, :string, enforce: true, constructor: &is_not_blank/1
     end
   end
 
