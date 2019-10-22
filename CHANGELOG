@@ -1,6 +1,21 @@
 <!--  vi:ft=markdown -->
 # Changelog
 
+## [1.1.0] - 2019-10-21
+
+### Bug Fixes
+
+- `c:new/2` was not using opts when `input` was a list
+- project would not compile if `enforce: true` option was used on constructor.
+
+### New Features
+
+- `:check_keys` option is added. This will need to be set to `true` in order for
+  keys to be enforced. It also will raise a `KeyError` if a key that's not part
+  of a struct is passed as input to `new/1`.  Defaults to `false`, as I prefer
+  to enforce these kinds of constraints through the use of `:constructor`
+  functions instead of raising errors.
+
 ## [1.0.0] - 2019-08-13
 
 First release! The API should remain stable from here on out.

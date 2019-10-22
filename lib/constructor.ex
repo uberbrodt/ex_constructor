@@ -140,6 +140,10 @@ defmodule Constructor do
   %ConstructorExampleAdmin{id: 22, user: %ConstructorExampleUser{id: 22, first_name: "Chris"}}
   ```
 
+  ## Enforce Keys
+  If you're defining a struct with the `enforce: true` option, you'll also want to set the
+  `check_keys: true` option in your `constructor` call. Note that this will cause `c:new/2` to raise
+  a `KeyError` if a key that is undefined on the struct is passed as input.
   ## Custom Validation Functions
 
   Custom validation functions will need to confrom to the `t:constructor/0` typespec. The test suite
@@ -164,7 +168,7 @@ defmodule Constructor do
     defexception message: "An error occured creating a struct"
   end
 
-  @type new_opts :: [nil_to_empty: boolean]
+  @type new_opts :: [nil_to_empty: boolean, check_keys: boolean]
 
   @typedoc """
   The `:constructor` option for the `TypedStruct.field/3` macro.
@@ -206,6 +210,7 @@ defmodule Constructor do
     return type.
   - `opts` - a keyword list of the following options:
     - `:nil_to_empty` - overrides what was set on `constructor/2`
+    - `:check_keys` - overrides what was set on `constructor/2`
 
   ## Returns
   If `input` is a map or keyword list, the return type will be `{:ok, module}`. If it is a list
@@ -305,6 +310,9 @@ defmodule Constructor do
 
   - `:nil_to_empty` - Whenever `c:new/2` receives a `nil` argument, it will return an empty struct
     with defaults set.  If instead you would like to receive `nil` back, set this option to `false`.
+  - `:check_keys` - if `true`, raises KeyError if a key passed is not valid for struct. Raises
+  ArgumentError if an enforced key is missing. Note: If `false`, any enforced keys are ignored.
+  Defaults to `false`.
   """
   @spec constructor(opts :: keyword) :: Macro.t()
   defmacro constructor(opts \\ [], do: block) do
