@@ -103,7 +103,6 @@ defmodule Constructor.ConvertTest do
     test ~s("foo" returns an error) do
       assert Convert.to_integer("foo") == {:error, "must be an integer"}
     end
-
   end
 
   describe "to_integer_or_nil" do
@@ -198,7 +197,7 @@ defmodule Constructor.ConvertTest do
     end
 
     test ~s("Tr123@" is an error") do
-      assert Convert.to_boolean("Tr123@" ) == {:error, "must be a boolean"}
+      assert Convert.to_boolean("Tr123@") == {:error, "must be a boolean"}
     end
 
     test ~s("false" converted to false) do
@@ -246,7 +245,7 @@ defmodule Constructor.ConvertTest do
     end
 
     test ~s(:true returns {:ok, true}) do
-      assert Convert.to_boolean(:true) == {:ok, true}
+      assert Convert.to_boolean(true) == {:ok, true}
     end
   end
 
@@ -290,7 +289,6 @@ defmodule Constructor.ConvertTest do
     end
   end
 
-
   describe "to_existing_atom/1" do
     test "nil remains nil" do
       assert Convert.to_existing_atom(nil) == {:ok, nil}
@@ -305,7 +303,8 @@ defmodule Constructor.ConvertTest do
     end
 
     test ~s("23098.sd9234" is not an existing atom) do
-      assert Convert.to_existing_atom("23098.sd9234") == {:error, "23098.sd9234 is not an existing atom"}
+      assert Convert.to_existing_atom("23098.sd9234") ==
+               {:error, "23098.sd9234 is not an existing atom"}
     end
   end
 

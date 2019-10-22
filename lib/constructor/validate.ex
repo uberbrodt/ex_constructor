@@ -6,7 +6,6 @@ defmodule Constructor.Validate do
 
   @type error :: {:error, String.t()}
 
-
   @doc """
   Checks if input is a `t:Date.t/0`
 
@@ -20,7 +19,7 @@ defmodule Constructor.Validate do
   {:error, "must be a Date"}
   ```
   """
-  @spec is_date(any) :: {:ok, Date.t} | error
+  @spec is_date(any) :: {:ok, Date.t()} | error
   def is_date(value) do
     case value do
       nil -> {:ok, value}
@@ -261,5 +260,4 @@ defmodule Constructor.Validate do
       _ -> {:error, "must be a string"}
     end
   end
-
 end

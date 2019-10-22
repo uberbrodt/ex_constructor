@@ -347,19 +347,20 @@ defmodule Constructor do
         {:ok, struct}
       end
 
-      defp convert_struct(%__MODULE__{} = struct) do
+      defp convert_struct(%__MODULE__{} = struct, _, _) do
         {:ok, struct}
       end
 
-      defp convert_struct(%{__struct__: s} = input) do
-        {:ok, struct(__MODULE__, Map.from_struct(input))}
+      defp convert_struct(%{__struct__: s} = input, opts, check_keys_default) do
+        {:ok, Constructor.struct(__MODULE__, opts, check_keys_default, Map.from_struct(input))}
       end
 
-      defp convert_struct(map) when is_map(map) do
-        {:ok, struct(__MODULE__, Morphix.atomorphify!(map, key_strings()))}
+      defp convert_struct(map, opts, check_keys_default) when is_map(map) do
+        fields = Morphix.atomorphify!(map, key_strings())
+        {:ok, Constructor.struct(__MODULE__, opts, check_keys_default, fields)}
       end
 
-      defp convert_struct(x), do: {:ok, x}
+      defp convert_struct(x, _, _), do: {:ok, x}
 
       def key_strings do
         __keys__() |> Enum.map(&Atom.to_string/1)
@@ -369,6 +370,7 @@ defmodule Constructor do
 
   defmacro _new(opts) when is_list(opts) do
     nil_to_empty_global = Keyword.get(opts, :nil_to_empty, true)
+    check_keys_global = Keyword.get(opts, :check_keys, false)
 
     quote do
       @impl Constructor
@@ -390,7 +392,7 @@ defmodule Constructor do
         nil_to_empty = Keyword.get(opts, :nil_to_empty, unquote(nil_to_empty_global))
 
         if nil_to_empty do
-          new(%__MODULE__{})
+          new(Constructor.struct(__MODULE__, opts, unquote(check_keys_global)))
         else
           {:ok, nil}
         end
@@ -403,7 +405,7 @@ defmodule Constructor do
       @impl Constructor
       def new(list, opts) when is_list(list) do
         if Keyword.keyword?(list) do
-          new(Enum.into(list, %{}))
+          new(Enum.into(list, %{}), opts)
         else
           mapped =
             for map <- list do
@@ -434,7 +436,7 @@ defmodule Constructor do
       @impl Constructor
       def new(map, opts) when is_map(map) do
         with {:ok, before_struct} <- before_construct(map),
-             {:ok, struct} <- convert_struct(before_struct),
+             {:ok, struct} <- convert_struct(before_struct, opts, unquote(check_keys_global)),
              {:ok, constructed} <- __field_constructors__(struct),
              {:ok, after_constructed} <- after_construct(constructed) do
           {:ok, after_constructed}
@@ -519,6 +521,14 @@ defmodule Constructor do
 
       {field_name, {:ok, v}} ->
         do_process_result(results, Map.put(struct, field_name, v), errors)
+    end
+  end
+
+  def struct(m, opts, default, fields \\ []) do
+    if Keyword.get(opts, :check_keys, default) == true do
+      struct!(m, fields)
+    else
+      struct(m, fields)
     end
   end
 end

@@ -51,6 +51,26 @@ defmodule ConstructorTest do
     end
   end
 
+  defmodule EnforcedKeyTest do
+    @moduledoc false
+    use Constructor
+
+    constructor do
+      field :id, :string, enforce: true
+      field :name, :string, default: "", constructor: &is_string/1
+    end
+  end
+
+  defmodule CheckKeysGlobalTest do
+    @moduledoc false
+    use Constructor
+
+    constructor check_keys: true do
+      field :id, :string, enforce: true
+      field :name, :string, default: "", constructor: &is_string/1
+    end
+  end
+
   defmodule TestUser do
     @moduledoc false
     use Constructor
@@ -246,13 +266,41 @@ defmodule ConstructorTest do
       assert ConstructorLists.new(args) ==
                {:error, {:constructor, %{last_name: "'Jones' does not meet length of 10"}}}
     end
+
+    test "passing [check_keys: true] opt will validate @enforce_keys" do
+      assert_raise ArgumentError, fn ->
+        EnforcedKeyTest.new([name: "Chris"], check_keys: true)
+      end
+    end
+
+    test "passing [check_keys: true] opt and map argument will validate @enforce_keys" do
+      assert_raise ArgumentError, fn ->
+        EnforcedKeyTest.new(%{name: "Chris"}, check_keys: true)
+      end
+    end
+
+    test "passing an invalid key with check_keys will raise KeyError" do
+      assert_raise KeyError, fn ->
+        EnforcedKeyTest.new(%{id: "foo", middle_name: "Chris"}, check_keys: true)
+      end
+    end
+
+    test "string keys are converted before @enforce_key is checked" do
+      assert {:ok, _} = EnforcedKeyTest.new(%{"id" => "foo", "name" => "Chris"}, check_keys: true)
+    end
+
+    test "check_keys global option sets default for new/1" do
+      assert_raise ArgumentError, fn ->
+        CheckKeysGlobalTest.new(%{name: "Chris"})
+      end
+    end
   end
 
   describe "new!/1" do
     test "construct fails age validation and raises ConstructorException" do
       args = %{age: "7.54", id: "foo", name: "Chris", child: %{name: "Otis"}}
 
-      assert_raise(Constructor.Exception, fn -> ConstructorTest.new!(args)  end)
+      assert_raise(Constructor.Exception, fn -> ConstructorTest.new!(args) end)
     end
   end
 
